@@ -84,19 +84,19 @@ my-project/
 
 ### Option 1: Run as a Python Script
 
-1.  Save the script as `llm_scanner.py`.
+1.  Save the script as `filePrompt.py`.
 2.  Open your terminal or command prompt.
 3.  Run the script in one of two ways:
 
     *   **Interactive Mode:**
         ```bash
-        python llm_scanner.py
+        python filePrompt.py
         ```
         The script will prompt you to enter the path to the folder you want to scan.
 
     *   **Command-Line Argument:**
         ```bash
-        python llm_scanner.py "path/to/your/project"
+        python filePrompt.py "path/to/your/project"
         ```
         Replace `"path/to/your/project"` with the actual folder path.
 
