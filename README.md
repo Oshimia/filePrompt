@@ -116,28 +116,52 @@ This will create a single executable file inside a `dist` directory.
 
 ## Configuration
 
-This script is designed to be easily configured without needing to understand all the code. Open the script file and modify the configuration sets at the top to fit your needs.
+The script's behavior is controlled by a `config.json` file. When you run the script for the first time, it will automatically create a `config.json` file in the same directory with default settings if one doesn't already exist.
 
-```python
-# --- Configuration ---
+You can customize the scanning process by editing this file.
 
-# Define which extensions should be treated as text files.
-TEXT_EXTENSIONS = {'.txt', '.py', '.js', ...}
+### Example `config.json`
 
-# --- ADVANCED IGNORE/FILTER RULES ---
-
-# NEW: Specific hidden files to ALWAYS include
-INCLUDED_HIDDEN_FILENAMES = {'.env.example'}
-
-# Folders to completely ignore
-IGNORED_FOLDERS = {'node_modules', 'venv', '__pycache__', '.git', ...}
-
-# Specific filenames to ignore entirely
-IGNORED_FILENAMES = {'package-lock.json', 'yarn.lock', ...}
-
-# Extensions to ignore, even if they are text-based (high token, low value)
-IGNORED_EXTENSIONS = {'.svg', '.lock'}
+```json
+{
+  "output_dir": "scan_results",
+  "output_filename": "scan_output.txt",
+  "text_extensions": [
+    ".txt",
+    ".py",
+    ".js",
+    ".json"
+  ],
+  "included_hidden_filenames": [
+    ".env.example"
+  ],
+  "ignored_folders": [
+    "node_modules",
+    "venv",
+    "__pycache__",
+    ".git"
+  ],
+  "ignored_filenames": [
+    "package-lock.json"
+  ],
+  "ignored_extensions": [
+    ".svg",
+    ".lock"
+  ],
+  "summarization_rules": {
+    "by_filename": {
+      "package.json": "summarize_json"
+    }
+  }
+}
 ```
+
+**Key Configuration Options:**
+*   `output_dir` & `output_filename`: Where to save the final scan result.
+*   `text_extensions`: A list of file extensions to be treated as text and have their content included.
+*   `included_hidden_filenames`: A list of specific hidden files (e.g., `.env.example`) to always include, even if they would normally be ignored.
+*   `ignored_folders`, `ignored_filenames`, `ignored_extensions`: Rules to filter out specific items.
+*   `summarization_rules`: Defines strategies for handling specific files (e.g., summarizing `package.json` instead of including its full content).
 
 ## License
 
