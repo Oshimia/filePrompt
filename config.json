@@ -1,0 +1,22 @@
+{
+  "output_dir": "scan_results",
+  "output_filename": "scan_output.txt",
+  "text_extensions": [
+    ".txt", ".py", ".js", ".json", ".html", ".css", ".md", ".xml",
+    ".csv", ".ini", ".cfg", ".log", ".rst", ".yml", ".yaml", ".tex",
+    ".java", ".c", ".cpp", ".h", ".hpp", ".sh", ".bat", ".rb", ".php", ".jsx",
+    ".pl", ".sql", ".cs", ".go", ".rs", ".swift", ".kt", ".scala", ".jsw", ".vb", ".example", ".ts"
+  ],
+  "included_hidden_filenames": [
+    ".env.example"
+  ],
+  "ignored_folders": [
+    "node_modules", "venv", "__pycache__", ".git", ".vscode", ".idea", "playwright-report"
+  ],
+  "ignored_filenames": [
+    "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "composer.lock"
+  ],
+  "ignored_extensions": [
+    ".svg", ".lock"
+  ]
+}

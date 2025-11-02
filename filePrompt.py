@@ -1,33 +1,51 @@
 import os
 import json
 import re
+import sys
 
-# --- Configuration ---
+# --- Configuration Loading ---
 
-# Define which extensions should be treated as text files.
-TEXT_EXTENSIONS = {
-    '.txt', '.py', '.js', '.json', '.html', '.css', '.md', '.xml',
-    '.csv', '.ini', '.cfg', '.log', '.rst', '.yml', '.yaml', '.tex',
-    '.java', '.c', '.cpp', '.h', '.hpp', '.sh', '.bat', '.rb', '.php', '.jsx',
-    '.pl', '.sql', '.cs', '.go', '.rs', '.swift', '.kt', '.scala', '.jsw', '.vb', '.example', '.ts'
+DEFAULT_CONFIG = {
+    "output_dir": "scan_results",
+    "output_filename": "scan_output.txt",
+    "text_extensions": [
+        ".txt", ".py", ".js", ".json", ".html", ".css", ".md", ".xml",
+        ".csv", ".ini", ".cfg", ".log", ".rst", ".yml", ".yaml", ".tex",
+        ".java", ".c", ".cpp", ".h", ".hpp", ".sh", ".bat", ".rb", ".php", ".jsx",
+        ".pl", ".sql", ".cs", ".go", ".rs", ".swift", ".kt", ".scala", ".jsw", ".vb", ".example", ".ts"
+    ],
+    "included_hidden_filenames": [".env.example"],
+    "ignored_folders": ["node_modules", "venv", "__pycache__", ".git", ".vscode", ".idea", "playwright-report"],
+    "ignored_filenames": ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "composer.lock"],
+    "ignored_extensions": [".svg", ".lock"]
 }
 
-# --- ADVANCED IGNORE/FILTER RULES ---
-# Folders to completely ignore
-IGNORED_FOLDERS = {'node_modules', 'venv', '__pycache__', '.git', '.vscode', '.idea', 'playwright-report'}
+def load_config(config_path="config.json"):
+    """Loads configuration from a JSON file, creating it with defaults if it doesn't exist."""
+    if not os.path.exists(config_path):
+        print(f"Configuration file '{config_path}' not found. Creating it with default values.")
+        try:
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(DEFAULT_CONFIG, f, indent=2)
+            config_data = DEFAULT_CONFIG
+        except Exception as e:
+            print(f"Error creating default config file: {e}. Using internal defaults.")
+            config_data = DEFAULT_CONFIG
+    else:
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config_data = json.load(f)
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"Error reading or parsing '{config_path}': {e}. Using internal defaults.")
+            config_data = DEFAULT_CONFIG
 
-# Specific hidden files to ALWAYS include
-INCLUDED_HIDDEN_FILENAMES = {'.env.example'}
-
-# Specific filenames to ignore entirely
-IGNORED_FILENAMES = {
-    'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'composer.lock'
-}
-
-# Extensions to ignore, even if they are text-based (high token, low value)
-IGNORED_EXTENSIONS = {
-    '.svg', '.lock'  # Treat SVG as a non-content file, and ignore any other .lock files
-}
+    # Convert lists from JSON to sets for efficient lookups
+    config_data['text_extensions'] = set(config_data.get('text_extensions', []))
+    config_data['included_hidden_filenames'] = set(config_data.get('included_hidden_filenames', []))
+    config_data['ignored_folders'] = set(config_data.get('ignored_folders', []))
+    config_data['ignored_filenames'] = set(config_data.get('ignored_filenames', []))
+    config_data['ignored_extensions'] = set(config_data.get('ignored_extensions', []))
+    return config_data
 
 # --- LLM Interpretation Guide (Token-Efficient Format) ---
 LLM_INTERPRETATION_GUIDE = """
@@ -147,10 +165,10 @@ def get_json_summary(data, filename):
 
 # --- Core Scanning Logic (with Advanced Filtering) ---
 
-def is_text_file(file_path):
-    return os.path.splitext(file_path)[1].lower() in TEXT_EXTENSIONS
+def is_text_file(file_path, config):
+    return os.path.splitext(file_path)[1].lower() in config['text_extensions']
 
-def scan_folder_token_efficient(folder_path, indent_level=0):
+def scan_folder_token_efficient(folder_path, config, indent_level=0):
     """
     Recursively scans a folder and returns a list of strings
     in the token-efficient "Compact Tree" format.
@@ -165,24 +183,24 @@ def scan_folder_token_efficient(folder_path, indent_level=0):
         return [f"{indent_str}[ERROR] Could not read directory {folder_path}: {e}"]
 
     for item_name in dir_items:
-        if item_name.startswith('.') and item_name not in INCLUDED_HIDDEN_FILENAMES:
+        if item_name.startswith('.') and item_name not in config['included_hidden_filenames']:
             continue
         
         item_path = os.path.join(folder_path, item_name)
 
         if os.path.isdir(item_path):
-            if item_name in IGNORED_FOLDERS:
+            if item_name in config['ignored_folders']:
                 continue
             output_lines.append(f"{indent_str}{item_name}/")
-            child_lines = scan_folder_token_efficient(item_path, indent_level + 1)
+            child_lines = scan_folder_token_efficient(item_path, config, indent_level + 1)
             output_lines.extend(child_lines)
 
         elif os.path.isfile(item_path):
             file_ext = os.path.splitext(item_name)[1].lower()
             
             # --- NEW: Advanced file filtering logic ---
-            if (item_name in IGNORED_FILENAMES or
-                file_ext in IGNORED_EXTENSIONS or
+            if (item_name in config['ignored_filenames'] or
+                file_ext in config['ignored_extensions'] or
                 ".min." in item_name):
                 output_lines.append(f"{indent_str}{item_name}")
                 output_lines.append(f"{child_indent_str}[IGNORED]")
@@ -190,7 +208,7 @@ def scan_folder_token_efficient(folder_path, indent_level=0):
             
             output_lines.append(f"{indent_str}{item_name}")
             
-            if is_text_file(item_path):
+            if is_text_file(item_path, config):
                 try:
                     with open(item_path, "r", encoding="utf-8", errors='ignore') as file:
                         content_str = file.read()
@@ -222,7 +240,8 @@ def scan_folder_token_efficient(folder_path, indent_level=0):
 # --- Main Execution ---
 
 if __name__ == "__main__":
-    import sys
+    
+    config = load_config()
 
     if len(sys.argv) > 1:
         folder = sys.argv[1].strip('"')
@@ -237,17 +256,22 @@ if __name__ == "__main__":
                 print(f"Error: '{folder}' (derived from '{raw_folder_path}') is not a valid directory. Please try again.")
 
     print(f"Scanning folder: {folder}...")
-    file_structure_lines = scan_folder_token_efficient(folder)
+    file_structure_lines = scan_folder_token_efficient(folder, config)
     
-    final_output_content = LLM_INTERPRETATION_GUIDE + "\n---\n\n" + "\n".join(file_structure_lines)
+    final_output_content = f"{LLM_INTERPRETATION_GUIDE}\n---\n\n" + "\n".join(file_structure_lines)
     
-    output_file = "scan_output.txt"
+    # Create output directory if it doesn't exist
+    output_dir = config['output_dir']
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    output_file_path = os.path.join(output_dir, config['output_filename'])
 
     try:
-        with open(output_file, "w", encoding="utf-8") as out:
+        with open(output_file_path, "w", encoding="utf-8") as out:
             out.write(final_output_content)
-        print(f"Scan completed. Filtered output saved to {output_file}")
-        print(f"Output size: {os.path.getsize(output_file)} bytes")
+        print(f"Scan completed. Filtered output saved to {output_file_path}")
+        print(f"Output size: {os.path.getsize(output_file_path)} bytes")
 
     except Exception as e:
-        print(f"Error writing output file {output_file}: {e}")
+        print(f"Error writing output file {output_file_path}: {e}")
