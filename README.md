@@ -80,29 +80,39 @@ my-project/
 ### Prerequisites
 *   [Python 3.6+](https://www.python.org/downloads/)
 
-### Option 1: Run as a Python Script
-
-1.  Save the script as `filePrompt.py`.
-2.  Open your terminal or command prompt.
-3.  Run the script in one of two ways:
+### Running the Script
+1.  Open your terminal or command prompt.
+2.  Run the script in one of two ways:
 
     *   **Interactive Mode:**
         ```bash
         python filePrompt.py
         ```
-        The script will prompt you to enter the path to the folder you want to scan.
+        The script will prompt you to enter one or more folder paths. Press Enter on an empty line when you are finished.
 
     *   **Command-Line Argument:**
         ```bash
-        python filePrompt.py "path/to/your/project"
+        python filePrompt.py "path/to/project1" "path/to/project2"
         ```
-        Replace `"path/to/your/project"` with the actual folder path.
+        Replace the paths with the actual folder paths you want to scan.
 
-The output will be saved to a file named `scan_output.txt` in the same directory where you run the command.
+The output will be saved to a directory and filename specified in your `config.json` (by default, `scan_results/scan_output.txt`).
 
-### Option 2: Run as a Standalone Executable (Windows)
+### Creating an Executable
 
-Use the [release](https://github.com/Oshimia/filePrompt/releases) exe file. You can double click on the file, or drag the directory you want to scan to the exe file. It will output the scan to the same location as the exe file. 
+To create a standalone executable from the source code, you will need `pyinstaller`.
+
+1.  **Install PyInstaller:**
+    ```bash
+    pip install pyinstaller
+    ```
+
+2.  **Run the Build Script:**
+    ```bash
+    python build.py
+    ```
+
+This will create a single executable file inside a `dist` directory.
 
 ## Configuration
 
