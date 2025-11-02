@@ -8,13 +8,13 @@ import re
 TEXT_EXTENSIONS = {
     '.txt', '.py', '.js', '.json', '.html', '.css', '.md', '.xml',
     '.csv', '.ini', '.cfg', '.log', '.rst', '.yml', '.yaml', '.tex',
-    '.java', '.c', '.cpp', '.h', '.hpp', '.sh', '.bat', '.rb', '.php',
-    '.pl', '.sql', '.cs', '.go', '.rs', '.swift', '.kt', '.scala', '.jsw', '.vb', '.example'
+    '.java', '.c', '.cpp', '.h', '.hpp', '.sh', '.bat', '.rb', '.php', '.jsx',
+    '.pl', '.sql', '.cs', '.go', '.rs', '.swift', '.kt', '.scala', '.jsw', '.vb', '.example', '.ts'
 }
 
 # --- ADVANCED IGNORE/FILTER RULES ---
 # Folders to completely ignore
-IGNORED_FOLDERS = {'node_modules', 'venv', '__pycache__', '.git', '.vscode', '.idea'}
+IGNORED_FOLDERS = {'node_modules', 'venv', '__pycache__', '.git', '.vscode', '.idea', 'playwright-report'}
 
 # Specific hidden files to ALWAYS include
 INCLUDED_HIDDEN_FILENAMES = {'.env.example'}
