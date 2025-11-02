@@ -2,21 +2,66 @@
   "output_dir": "scan_results",
   "output_filename": "scan_output.txt",
   "text_extensions": [
-    ".txt", ".py", ".js", ".json", ".html", ".css", ".md", ".xml",
-    ".csv", ".ini", ".cfg", ".log", ".rst", ".yml", ".yaml", ".tex",
-    ".java", ".c", ".cpp", ".h", ".hpp", ".sh", ".bat", ".rb", ".php", ".jsx",
-    ".pl", ".sql", ".cs", ".go", ".rs", ".swift", ".kt", ".scala", ".jsw", ".vb", ".example", ".ts"
+    ".txt",
+    ".py",
+    ".js",
+    ".json",
+    ".html",
+    ".css",
+    ".md",
+    ".xml",
+    ".csv",
+    ".ini",
+    ".cfg",
+    ".log",
+    ".rst",
+    ".yml",
+    ".yaml",
+    ".tex",
+    ".java",
+    ".c",
+    ".cpp",
+    ".h",
+    ".hpp",
+    ".sh",
+    ".bat",
+    ".rb",
+    ".php",
+    ".jsx",
+    ".pl",
+    ".sql",
+    ".cs",
+    ".go",
+    ".rs",
+    ".swift",
+    ".kt",
+    ".scala",
+    ".jsw",
+    ".vb",
+    ".example",
+    ".ts"
   ],
   "included_hidden_filenames": [
     ".env.example"
   ],
   "ignored_folders": [
-    "node_modules", "venv", "__pycache__", ".git", ".vscode", ".idea", "playwright-report"
+    "node_modules",
+    "venv",
+    "__pycache__",
+    ".git",
+    ".vscode",
+    ".idea",
+    "playwright-report"
   ],
   "ignored_filenames": [
-    "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "composer.lock"
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "composer.lock"
   ],
   "ignored_extensions": [
-    ".svg", ".lock"
-  ]
+    ".svg",
+    ".lock"
+  ],
+  "llm_interpretation_guide": "This document is a token-efficient representation of a codebase. Interpret it as follows:\n\n- HIERARCHY: Indentation represents the directory structure.\n- DIRECTORIES: A line ending with a forward slash `/` is a directory.\n- FILES: A line not ending in a slash is a file within the directory defined by its indentation level.\n- FILE CONTENT:\n  - Textual content for a file is enclosed between `---[FILE_CONTENT]---` markers that appear on the lines immediately following the filename.\n  - The content has been processed to remove comments and reduce whitespace.\n- SPECIAL FILE TAGS: Some files are represented by a single-line tag on the line after the filename:\n  - `[SUMMARY_JSON] {\"key\":\"value\",...}`: A compact, single-line JSON summary of a configuration file (e.g., package.json).\n  - `[BINARY]`: A binary file whose content is not included.\n  - `[IGNORED]`: File was ignored due to filtering rules (e.g., minified file, lock file, SVG).\n  - `[ERROR] message...`: An error occurred while reading or processing the file."
 }

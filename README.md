@@ -1,36 +1,34 @@
-# filePrompt: A Codebase Scanner for LLMs
+# filePrompt: A Modular Codebase Scanner for LLMs
 
-A Python script that scans a project directory and creates a single, token-efficient text file representing the entire codebase. This output is specifically formatted to be easily parsed and understood by Large Language Models (LLMs) like GPT-4, Gemini, Claude, and others.
+A modular Python script that scans one or more project directories and creates a single, token-efficient text file representing the entire codebase. This output is specifically formatted to be easily parsed and understood by Large Language Models (LLMs) like GPT-4, Gemini, Claude, and others.
 
-The primary goal is to provide a clean, context-rich representation of a project that can be easily pasted into an LLM prompt, overcoming token limits and removing irrelevant "noise" like comments, `node_modules`, and lock files. This is intended for small to medium sized projects that can fit into an LLM context window, and as such does not have a token limit, or truncation logic to cut down on the output length. 
+The primary goal is to provide a clean, context-rich representation of a project that can be easily pasted into an LLM prompt, overcoming token limits and removing irrelevant "noise" like comments, `node_modules`, and lock files.
 
 ## The Problem It Solves
 
 When working with LLMs, you often need to provide them with the context of your codebase. However, you face several challenges:
 *   **Token Limits:** Pasting entire files can quickly exceed the model's context window.
 *   **Noise:** Comments, excessive whitespace, build artifacts, and dependency folders (`node_modules`) consume valuable tokens without adding useful context.
-*   **Structure:** It's difficult to convey the directory structure and file relationships in a simple text format.
+*   **Structure:** It's difficult to convey the directory structure and file relationships in a plain text format.
 
 This script addresses these issues by creating a compact, hierarchical representation of your codebase, intelligently filtering out noise and summarizing key configuration files.
 
 ## Features
 
 *   **Recursive Directory Scanning:** Traverses the entire folder structure of your project.
-*   **Intelligent Filtering:**
-    *   Ignores common boilerplate folders like `.git`, `node_modules`, `venv`, and `__pycache__`.
-    *   Skips lock files (`package-lock.json`, `yarn.lock`, etc.).
-    *   Excludes binary files and low-value text files like SVGs.
-    *   Allows for a configurable "include list" for specific hidden files (e.g., `.env.example`).
+*   **Fully Configurable via JSON:** All filtering rules, output settings, and even the LLM guide text are managed in a `config.json` file.
+*   **Intelligent Filtering:** Ignores common boilerplate folders, specific filenames, and file extensions by default.
 *   **Content Processing:**
     *   Removes comments from a wide range of languages (Python, JavaScript, Java, C-style, HTML, etc.).
     *   Normalizes whitespace to reduce token count.
-*   **Smart Summaries:** Condenses important files like `package.json` into a single-line JSON summary of key fields (dependencies, scripts).
-*   **Configurable:** All rules—ignored folders, files, extensions, and included hidden files—are defined in simple sets at the top of the script for easy customization.
+*   **Configurable Summarization Engine:** Summarizes key files like `package.json` into a compact format. This is extensible, allowing you to define new summarization strategies for different file types.
+*   **Multi-Directory Scanning:** Scan multiple project folders in a single command, with the output clearly delineated by root directory headers.
 *   **Cross-Platform:** Built with standard Python libraries to run on Windows, macOS, and Linux.
+*   **Modular Architecture:** The codebase is broken into logical modules for configuration, scanning, and content processing, making it easy to understand and extend.
 
 ## The Output Format
 
-The script generates a `scan_output.txt` file with a custom format designed for LLM interpretation. The file begins with a guide explaining the structure.
+The script generates an output file (e.g., `scan_output.txt`) with a custom format designed for LLM interpretation. The file begins with a guide explaining the structure.
 
 ```
 This document is a token-efficient representation of a codebase. Interpret it as follows:

@@ -1,264 +1,49 @@
 import os
-import json
-import re
 import sys
-
-# --- Configuration Loading ---
-
-DEFAULT_CONFIG = {
-    "output_dir": "scan_results",
-    "output_filename": "scan_output.txt",
-    "text_extensions": [
-        ".txt", ".py", ".js", ".json", ".html", ".css", ".md", ".xml",
-        ".csv", ".ini", ".cfg", ".log", ".rst", ".yml", ".yaml", ".tex",
-        ".java", ".c", ".cpp", ".h", ".hpp", ".sh", ".bat", ".rb", ".php", ".jsx",
-        ".pl", ".sql", ".cs", ".go", ".rs", ".swift", ".kt", ".scala", ".jsw", ".vb", ".example", ".ts"
-    ],
-    "included_hidden_filenames": [".env.example"],
-    "ignored_folders": ["node_modules", "venv", "__pycache__", ".git", ".vscode", ".idea", "playwright-report"],
-    "ignored_filenames": ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "composer.lock"],
-    "ignored_extensions": [".svg", ".lock"]
-}
-
-def load_config(config_path="config.json"):
-    """Loads configuration from a JSON file, creating it with defaults if it doesn't exist."""
-    if not os.path.exists(config_path):
-        print(f"Configuration file '{config_path}' not found. Creating it with default values.")
-        try:
-            with open(config_path, "w", encoding="utf-8") as f:
-                json.dump(DEFAULT_CONFIG, f, indent=2)
-            config_data = DEFAULT_CONFIG
-        except Exception as e:
-            print(f"Error creating default config file: {e}. Using internal defaults.")
-            config_data = DEFAULT_CONFIG
-    else:
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                config_data = json.load(f)
-        except (json.JSONDecodeError, Exception) as e:
-            print(f"Error reading or parsing '{config_path}': {e}. Using internal defaults.")
-            config_data = DEFAULT_CONFIG
-
-    # Convert lists from JSON to sets for efficient lookups
-    config_data['text_extensions'] = set(config_data.get('text_extensions', []))
-    config_data['included_hidden_filenames'] = set(config_data.get('included_hidden_filenames', []))
-    config_data['ignored_folders'] = set(config_data.get('ignored_folders', []))
-    config_data['ignored_filenames'] = set(config_data.get('ignored_filenames', []))
-    config_data['ignored_extensions'] = set(config_data.get('ignored_extensions', []))
-    return config_data
-
-# --- LLM Interpretation Guide (Token-Efficient Format) ---
-LLM_INTERPRETATION_GUIDE = """
-This document is a token-efficient representation of a codebase. Interpret it as follows:
-
-- HIERARCHY: Indentation represents the directory structure.
-- DIRECTORIES: A line ending with a forward slash `/` is a directory.
-- FILES: A line not ending in a slash is a file within the directory defined by its indentation level.
-- FILE CONTENT:
-  - Textual content for a file is enclosed between `---[FILE_CONTENT]---` markers that appear on the lines immediately following the filename.
-  - The content has been processed to remove comments and reduce whitespace.
-- SPECIAL FILE TAGS: Some files are represented by a single-line tag on the line after the filename:
-  - `[SUMMARY_JSON] {"key":"value",...}`: A compact, single-line JSON summary of a configuration file (e.g., package.json).
-  - `[BINARY]`: A binary file whose content is not included.
-  - `[IGNORED]`: File was ignored due to filtering rules (e.g., minified file, lock file, SVG).
-  - `[ERROR] message...`: An error occurred while reading or processing the file.
-"""
-
-# --- Helper Functions for Content Processing (Unchanged) ---
-
-def remove_comments_from_line(line, comment_marker):
-    """Removes comments from a single line given a single-line comment marker."""
-    try:
-        return line.split(comment_marker, 1)[0].rstrip()
-    except:
-        return line.rstrip()
-
-def remove_c_style_multiline_comments(code):
-    """Removes /* ... */ comments."""
-    return re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
-
-def remove_html_xml_comments(code):
-    """Removes <!-- ... --> comments."""
-    return re.sub(r'<!--.*?-->', '', code, flags=re.DOTALL)
-
-def process_code_content(content_str, file_ext):
-    """Removes comments and normalizes whitespace for known code types."""
-    lines = content_str.splitlines()
-    processed_lines = []
-    
-    if file_ext in ['.js', '.jsw', '.css', '.c', '.cpp', '.java', '.cs', '.go', '.rs', '.swift', '.kt', '.scala', '.h', '.hpp']:
-        content_str = remove_c_style_multiline_comments(content_str)
-        lines = content_str.splitlines()
-
-    if file_ext in ['.xml', '.html']:
-        content_str = remove_html_xml_comments(content_str)
-        lines = content_str.splitlines()
-
-    in_python_multiline_string = False
-    
-    for i, line in enumerate(lines):
-        original_line_for_shebang = line
-        
-        if file_ext in ['.py', '.sh', '.rb', '.pl', '.yml', '.yaml', '.ini', '.cfg', '.bat']:
-            if file_ext == '.py':
-                if '"""' in line:
-                    if line.count('"""') % 2 != 0: 
-                        in_python_multiline_string = not in_python_multiline_string
-                elif "'''" in line:
-                    if line.count("'''") % 2 != 0:
-                        in_python_multiline_string = not in_python_multiline_string
-            
-            if not in_python_multiline_string and '#' in line:
-                if i == 0 and (original_line_for_shebang.startswith("#!") or original_line_for_shebang.startswith("::#")):
-                     line = original_line_for_shebang.rstrip()
-                else:
-                    stripped_line_for_hash = line.strip()
-                    if stripped_line_for_hash.startswith('#'):
-                        if not processed_lines or processed_lines[-1].strip() != "":
-                            processed_lines.append("") 
-                        continue
-                    else:
-                        line = remove_comments_from_line(line, '#')
-            elif in_python_multiline_string and file_ext == '.py':
-                pass
-
-        elif file_ext in ['.js', '.jsw', '.c', '.cpp', '.java', '.cs', '.go', '.rs', '.swift', '.kt', '.scala', '.h', '.hpp']:
-            if '//' in line:
-                idx = line.find('//')
-                single_quotes_before = line[:idx].count("'")
-                double_quotes_before = line[:idx].count('"')
-                if (single_quotes_before % 2 == 0) and (double_quotes_before % 2 == 0):
-                    line = remove_comments_from_line(line, '//')
-        
-        if line.strip() or (processed_lines and processed_lines[-1].strip()):
-            processed_lines.append(line.rstrip())
-
-    final_lines = []
-    for i, line_item in enumerate(processed_lines):
-        if line_item.strip() == "" and (i > 0 and not final_lines[-1].strip()):
-            continue 
-        final_lines.append(line_item)
-        
-    return "\n".join(final_lines)
-
-# --- JSON Summary Helper (Unchanged) ---
-def get_json_summary(data, filename):
-    if filename == "package.json":
-        summary = {
-            "name": data.get("name"),
-            "version": data.get("version"),
-            "dependencies": data.get("dependencies"),
-            "devDependencies": data.get("devDependencies"),
-            "scripts": data.get("scripts")
-        }
-        return {k: v for k, v in summary.items() if v is not None}
-    elif filename in ["jsconfig.json", "tsconfig.json"]:
-        summary = {
-            "compilerOptions_paths": data.get("compilerOptions", {}).get("paths"),
-            "references": data.get("references"),
-            "include": data.get("include"),
-            "exclude": data.get("exclude"),
-            "typeAcquisition": data.get("typeAcquisition")
-        }
-        return {k: v for k, v in summary.items() if v is not None}
-    return data
-
-# --- Core Scanning Logic (with Advanced Filtering) ---
-
-def is_text_file(file_path, config):
-    return os.path.splitext(file_path)[1].lower() in config['text_extensions']
-
-def scan_folder_token_efficient(folder_path, config, indent_level=0):
-    """
-    Recursively scans a folder and returns a list of strings
-    in the token-efficient "Compact Tree" format.
-    """
-    output_lines = []
-    indent_str = "  " * indent_level
-    child_indent_str = "  " * (indent_level + 1)
-
-    try:
-        dir_items = sorted(os.listdir(folder_path), key=lambda x: (not os.path.isdir(os.path.join(folder_path, x)), x.lower()))
-    except OSError as e:
-        return [f"{indent_str}[ERROR] Could not read directory {folder_path}: {e}"]
-
-    for item_name in dir_items:
-        if item_name.startswith('.') and item_name not in config['included_hidden_filenames']:
-            continue
-        
-        item_path = os.path.join(folder_path, item_name)
-
-        if os.path.isdir(item_path):
-            if item_name in config['ignored_folders']:
-                continue
-            output_lines.append(f"{indent_str}{item_name}/")
-            child_lines = scan_folder_token_efficient(item_path, config, indent_level + 1)
-            output_lines.extend(child_lines)
-
-        elif os.path.isfile(item_path):
-            file_ext = os.path.splitext(item_name)[1].lower()
-            
-            # --- NEW: Advanced file filtering logic ---
-            if (item_name in config['ignored_filenames'] or
-                file_ext in config['ignored_extensions'] or
-                ".min." in item_name):
-                output_lines.append(f"{indent_str}{item_name}")
-                output_lines.append(f"{child_indent_str}[IGNORED]")
-                continue # Skip to the next file
-            
-            output_lines.append(f"{indent_str}{item_name}")
-            
-            if is_text_file(item_path, config):
-                try:
-                    with open(item_path, "r", encoding="utf-8", errors='ignore') as file:
-                        content_str = file.read()
-
-                    if file_ext == '.json':
-                        try:
-                            json_data = json.loads(content_str)
-                            summary = get_json_summary(json_data, item_name)
-                            if summary is not json_data: # A specific summary was made
-                                compact_json = json.dumps(summary, separators=(',', ':'))
-                                output_lines.append(f"{child_indent_str}[SUMMARY_JSON] {compact_json}")
-                            else: # Not a special JSON, treat as regular text
-                                processed_content = process_code_content(content_str, file_ext)
-                                output_lines.extend([f"{child_indent_str}---[FILE_CONTENT]---", processed_content, f"{child_indent_str}---[FILE_CONTENT]---"])
-                        except json.JSONDecodeError: # Malformed JSON, treat as text
-                            processed_content = process_code_content(content_str, file_ext)
-                            output_lines.extend([f"{child_indent_str}---[FILE_CONTENT]---", processed_content, f"{child_indent_str}---[FILE_CONTENT]---"])
-                    else: # Regular text file
-                        processed_content = process_code_content(content_str, file_ext)
-                        output_lines.extend([f"{child_indent_str}---[FILE_CONTENT]---", processed_content, f"{child_indent_str}---[FILE_CONTENT]---"])
-                except Exception as e:
-                    print(f"Error reading or processing {item_path}: {e}")
-                    output_lines.append(f"{child_indent_str}[ERROR] {e}")
-            else: 
-                output_lines.append(f"{child_indent_str}[BINARY]")
-                
-    return output_lines
+from scanner import scan_folder_token_efficient
+from config_loader import load_config
 
 # --- Main Execution ---
 
 if __name__ == "__main__":
     
     config = load_config()
+    folders_to_scan = []
 
     if len(sys.argv) > 1:
-        folder = sys.argv[1].strip('"')
-    else:
-        while True:
-            raw_folder_path = input("Enter folder path to scan: ").strip()
-            folder = raw_folder_path.strip('"')
-
+        for arg in sys.argv[1:]:
+            folder = arg.strip('"')
             if os.path.isdir(folder):
-                break
+                folders_to_scan.append(folder)
             else:
-                print(f"Error: '{folder}' (derived from '{raw_folder_path}') is not a valid directory. Please try again.")
+                print(f"Warning: '{folder}' is not a valid directory. Skipping.")
+    else:
+        print("Enter folder paths to scan. Press Enter on an empty line when you are done.")
+        while True:
+            raw_folder_path = input("Path: ").strip()
+            if not raw_folder_path:
+                break
+            folder = raw_folder_path.strip('"')
+            if os.path.isdir(folder):
+                folders_to_scan.append(folder)
+                print(f"  -> Added '{folder}'")
+            else:
+                print(f"  -> Error: '{folder}' is not a valid directory. Please try again.")
 
-    print(f"Scanning folder: {folder}...")
-    file_structure_lines = scan_folder_token_efficient(folder, config)
+    if not folders_to_scan:
+        print("No valid directories to scan. Exiting.")
+        sys.exit(1)
+
+    all_file_structure_lines = []
+    for i, folder in enumerate(folders_to_scan):
+        print(f"Scanning root folder: {folder}...")
+        if i > 0:
+            all_file_structure_lines.append("") # Add a blank line for separation
+        all_file_structure_lines.append(f"---[ROOT_DIRECTORY: {folder}]---")
+        all_file_structure_lines.extend(scan_folder_token_efficient(folder, config, is_root=True))
     
-    final_output_content = f"{LLM_INTERPRETATION_GUIDE}\n---\n\n" + "\n".join(file_structure_lines)
+    llm_guide = config.get('llm_interpretation_guide', '')
+    final_output_content = f"{llm_guide}\n---\n\n" + "\n".join(all_file_structure_lines)
     
     # Create output directory if it doesn't exist
     output_dir = config['output_dir']
