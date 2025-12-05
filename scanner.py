@@ -12,10 +12,6 @@ def scan_folder_token_efficient(folder_path, config, indent_level=0, is_root=Fal
     """
     output_lines = []
 
-    # If this is the root folder of a scan, add its name to the output.
-    if is_root:
-        pass # The root directory name is now handled by the header in filePrompt.py
-
     indent_str = "  " * indent_level
     child_indent_str = "  " * (indent_level + 1)
 
@@ -23,6 +19,23 @@ def scan_folder_token_efficient(folder_path, config, indent_level=0, is_root=Fal
         # Sort items to have directories first, then files, all alphabetically.
         dir_items = sorted(os.listdir(folder_path), key=lambda x: (not os.path.isdir(os.path.join(folder_path, x)), x.lower()))
     except OSError as e:
+        # This will now handle the case where folder_path is a file.
+        if os.path.isfile(folder_path):
+            item_name = os.path.basename(folder_path)
+            # When scanning a single file, it's the root, so no indent.
+            output_lines.append(f"{item_name}")
+            if is_text_file(folder_path, config):
+                try:
+                    with open(folder_path, "r", encoding="utf-8", errors='ignore') as file:
+                        content_str = file.read()
+                    # The child_indent_str is appropriate here for the content markers.
+                    output_lines.extend(summarize_file(content_str, item_name, config))
+                except Exception as e:
+                    output_lines.append(f"{child_indent_str}[ERROR] {e}")
+            else:
+                output_lines.append(f"{child_indent_str}[BINARY]")
+            return output_lines
+
         return [f"{indent_str}[ERROR] Could not read directory {folder_path}: {e}"]
 
     for item_name in dir_items:
